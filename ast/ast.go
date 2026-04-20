@@ -40,7 +40,7 @@ type ExprBinary struct {
 }
 
 func (expr *ExprBinary) String() string {
-	return expr.Lhs.String() + " " + expr.Op.String() + " " + expr.Rhs.String()
+	return "(" + expr.Lhs.String() + " " + expr.Op.String() + " " + expr.Rhs.String() + ")"
 }
 
 type UnaryOp uint8
