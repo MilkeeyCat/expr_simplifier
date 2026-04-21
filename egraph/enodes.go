@@ -23,14 +23,14 @@ type enodeKey struct {
 	data [wordSize * 2]byte
 }
 
-func ptrToBytes(ptr *eclass) [wordSize]byte {
-	return *(*[wordSize]byte)(unsafe.Pointer(&ptr))
+func enodeIDToBytes(id eclassID) [wordSize]byte {
+	return *(*[unsafe.Sizeof(eclassID(0))]byte)(unsafe.Pointer(&id))
 }
 
 type binaryEnode struct {
 	op  ast.BinaryOp
-	lhs *eclass
-	rhs *eclass
+	lhs eclassID
+	rhs eclassID
 }
 
 func (node *binaryEnode) String(graph *Egraph) string {
@@ -39,8 +39,8 @@ func (node *binaryEnode) String(graph *Egraph) string {
 
 func (node *binaryEnode) Key() enodeKey {
 	var data [wordSize * 2]byte
-	lhs := ptrToBytes(node.lhs)
-	rhs := ptrToBytes(node.rhs)
+	lhs := enodeIDToBytes(node.lhs)
+	rhs := enodeIDToBytes(node.rhs)
 
 	copy(data[:], lhs[:])
 	copy(data[wordSize:], rhs[:])
@@ -51,13 +51,13 @@ func (node *binaryEnode) Key() enodeKey {
 	}
 }
 
-func (node *binaryEnode) Children() []*eclass {
-	return []*eclass{node.lhs, node.rhs}
+func (node *binaryEnode) Children() []eclassID {
+	return []eclassID{node.lhs, node.rhs}
 }
 
 type unaryEnode struct {
 	op    ast.UnaryOp
-	class *eclass
+	class eclassID
 }
 
 func (node *unaryEnode) String(graph *Egraph) string {
@@ -66,7 +66,7 @@ func (node *unaryEnode) String(graph *Egraph) string {
 
 func (node *unaryEnode) Key() enodeKey {
 	var data [wordSize * 2]byte
-	expr := ptrToBytes(node.class)
+	expr := enodeIDToBytes(node.class)
 
 	copy(data[:], expr[:])
 
@@ -76,8 +76,8 @@ func (node *unaryEnode) Key() enodeKey {
 	}
 }
 
-func (node *unaryEnode) Children() []*eclass {
-	return []*eclass{node.class}
+func (node *unaryEnode) Children() []eclassID {
+	return []eclassID{node.class}
 }
 
 type intEnode struct {
@@ -100,7 +100,7 @@ func (node *intEnode) Key() enodeKey {
 	}
 }
 
-func (node *intEnode) Children() []*eclass {
+func (node *intEnode) Children() []eclassID {
 	return nil
 }
 
@@ -124,6 +124,6 @@ func (node *variableEnode) String(graph *Egraph) string {
 	return graph.interner.get(node.name)
 }
 
-func (node *variableEnode) Children() []*eclass {
+func (node *variableEnode) Children() []eclassID {
 	return nil
 }

@@ -22,22 +22,22 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 	graph = graph.SetCompound(true)
 
 	collector := new(collector)
-	classToName := make(map[*eclass]string)
+	classIDToName := make(map[eclassID]string)
 	nodeToName := make(map[enode]string)
 
 	egraph.DFS(collector)
 
-	for classIdx, class := range collector.classes {
+	for classIdx, classID := range collector.classIDs {
 		clusterName := "cluster_" + strconv.Itoa(classIdx)
 		cluster, err := graph.CreateSubGraphByName(clusterName)
 		if err != nil {
 			return err
 		}
 
-		classToName[class] = clusterName
+		classIDToName[classID] = clusterName
 		cluster = cluster.SetStyle(graphviz.FilledGraphStyle)
 
-		for nodeIdx, node := range class.nodes {
+		for nodeIdx, node := range egraph.eclass(classID).nodes {
 			nodeName := "node_" + strconv.Itoa(classIdx) + "_" + strconv.Itoa(nodeIdx)
 			graphNode, err := cluster.CreateNodeByName(nodeName)
 			if err != nil {
@@ -56,7 +56,7 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 			return err
 		}
 
-		cluster, err := graph.SubGraphByName(classToName[edge.class])
+		cluster, err := graph.SubGraphByName(classIDToName[edge.classID])
 		if err != nil {
 			return err
 		}
@@ -71,7 +71,7 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 			return err
 		}
 
-		graphEdge.SetLogicalHead(classToName[edge.class])
+		graphEdge.SetLogicalHead(classIDToName[edge.classID])
 	}
 
 	if err := g.Render(ctx, graph, graphviz.SVG, dest); err != nil {
@@ -90,26 +90,26 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 }
 
 type edge struct {
-	node  enode
-	class *eclass
+	node    enode
+	classID eclassID
 }
 
 type collector struct {
-	classes []*eclass
-	edges   []edge
+	classIDs []eclassID
+	edges    []edge
 }
 
-func (c *collector) VisitEclass(class *eclass) {
-	c.classes = append(c.classes, class)
+func (c *collector) VisitEclass(graph *Egraph, classID eclassID) {
+	c.classIDs = append(c.classIDs, classID)
 
-	for _, node := range class.nodes {
-		for _, class := range node.Children() {
+	for _, node := range graph.eclass(classID).nodes {
+		for _, classID := range node.Children() {
 			c.edges = append(c.edges, edge{
-				node:  node,
-				class: class,
+				node:    node,
+				classID: classID,
 			})
 		}
 	}
 }
 
-func (c *collector) VisitEnode(node enode) {}
+func (c *collector) VisitEnode(graph *Egraph, node enode) {}
