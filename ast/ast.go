@@ -33,13 +33,13 @@ const (
 	BinaryOpDiv
 )
 
-type ExprBinary struct {
+type BinaryExpr struct {
 	Op  BinaryOp
 	Lhs Expr
 	Rhs Expr
 }
 
-func (expr *ExprBinary) String() string {
+func (expr *BinaryExpr) String() string {
 	return "(" + expr.Lhs.String() + " " + expr.Op.String() + " " + expr.Rhs.String() + ")"
 }
 
@@ -58,27 +58,27 @@ const (
 	UnaryOpNeg UnaryOp = iota
 )
 
-type ExprUnary struct {
+type UnaryExpr struct {
 	Op   UnaryOp
 	Expr Expr
 }
 
-func (expr *ExprUnary) String() string {
+func (expr *UnaryExpr) String() string {
 	return expr.Op.String() + expr.Expr.String()
 }
 
-type ExprInt struct {
+type IntExpr struct {
 	Value int64
 }
 
-func (expr *ExprInt) String() string {
+func (expr *IntExpr) String() string {
 	return strconv.FormatInt(expr.Value, 10)
 }
 
-type ExprVariable struct {
+type VariableExpr struct {
 	Name string
 }
 
-func (expr *ExprVariable) String() string {
+func (expr *VariableExpr) String() string {
 	return expr.Name
 }

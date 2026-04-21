@@ -65,22 +65,22 @@ func translateExpr(graph *Egraph, expr ast.Expr) *eclass {
 	var node enode
 
 	switch expr := expr.(type) {
-	case *ast.ExprBinary:
+	case *ast.BinaryExpr:
 		node = &binaryEnode{
 			op:  expr.Op,
 			lhs: translateExpr(graph, expr.Lhs),
 			rhs: translateExpr(graph, expr.Rhs),
 		}
-	case *ast.ExprUnary:
+	case *ast.UnaryExpr:
 		node = &unaryEnode{
 			op:    expr.Op,
 			class: translateExpr(graph, expr.Expr),
 		}
-	case *ast.ExprInt:
+	case *ast.IntExpr:
 		node = &intEnode{
 			value: expr.Value,
 		}
-	case *ast.ExprVariable:
+	case *ast.VariableExpr:
 		node = &variableEnode{
 			name: graph.interner.intern(expr.Name),
 		}

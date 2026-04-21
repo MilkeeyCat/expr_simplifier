@@ -113,7 +113,7 @@ func (p *Parser) parseExpr(precedence precedence) (ast.Expr, error) {
 }
 
 func (p *Parser) parseIdent() (ast.Expr, error) {
-	expr := &ast.ExprVariable{
+	expr := &ast.VariableExpr{
 		Name: p.curToken.Value.(string),
 	}
 
@@ -125,7 +125,7 @@ func (p *Parser) parseIdent() (ast.Expr, error) {
 }
 
 func (p *Parser) parseInt() (ast.Expr, error) {
-	expr := &ast.ExprInt{
+	expr := &ast.IntExpr{
 		Value: p.curToken.Value.(int64),
 	}
 
@@ -153,7 +153,7 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, error) {
 		return nil, err
 	}
 
-	return &ast.ExprUnary{
+	return &ast.UnaryExpr{
 		Op:   op,
 		Expr: expr,
 	}, nil
@@ -202,7 +202,7 @@ func (p *Parser) parseBinaryExpr(lhs ast.Expr) (ast.Expr, error) {
 		return nil, err
 	}
 
-	return &ast.ExprBinary{
+	return &ast.BinaryExpr{
 		Op:  op,
 		Lhs: lhs,
 		Rhs: rhs,
