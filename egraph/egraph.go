@@ -59,7 +59,11 @@ func New(expr ast.Expr) *Egraph {
 }
 
 func (graph *Egraph) eclass(id eclassID) *eclass {
-	return graph.classes[graph.classesDSU.Find(id)]
+	if value, ok := graph.classes[graph.classesDSU.Find(id)]; ok {
+		return value
+	} else {
+		panic(fmt.Sprintf("e-class with id %d not found", id))
+	}
 }
 
 func (graph *Egraph) canonicalEclassID(id eclassID) eclassID {
@@ -77,14 +81,20 @@ func (graph *Egraph) merge(a, b eclassID) {
 	graph.classesDSU.Union(a, b)
 
 	root := graph.classesDSU.Find(a)
-	rootClass := graph.classes[root]
-	other := a
+	rootClass, ok := graph.classes[root]
+	if !ok {
+		panic("e-class not found")
+	}
 
+	other := a
 	if root == a {
 		other = b
 	}
 
-	otherClass := graph.classes[other]
+	otherClass, ok := graph.classes[other]
+	if !ok {
+		panic("e-class not found")
+	}
 
 	rootClass.nodes = concatEnodes(rootClass.nodes, otherClass.nodes)
 	rootClass.parents = concatEnodes(rootClass.parents, otherClass.parents)
@@ -105,7 +115,10 @@ func (graph *Egraph) rebuild() {
 
 		node.CanonicalizeChildren(children)
 
-		classID := graph.nodeToClassID[key]
+		classID, ok := graph.nodeToClassID[key]
+		if !ok {
+			panic("e-class ID not found")
+		}
 
 		delete(graph.nodeToClassID, key)
 
