@@ -41,6 +41,10 @@ func (l *Lexer) Next() (Token, error) {
 		token.Type = TokenTypeAsterisk
 	case '/':
 		token.Type = TokenTypeSlash
+	case '=':
+		token.Type = TokenTypeEqual
+	case '>':
+		token.Type = TokenTypeGreaterThan
 	case '(':
 		token.Type = TokenTypeLeftParen
 	case ')':

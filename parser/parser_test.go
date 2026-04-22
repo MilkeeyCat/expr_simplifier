@@ -83,3 +83,32 @@ func TestPrecedence(t *testing.T) {
 		assert.Equal(t, tt.output, expr.String())
 	}
 }
+
+func TestRewriteRules(t *testing.T) {
+	tests := []struct {
+		input  string
+		output string
+	}{
+		{
+			input:  "a + 0 => 0",
+			output: "(a + 0) => 0",
+		},
+		{
+			input:  "a * 1 => a",
+			output: "(a * 1) => a",
+		},
+		{
+			input:  "a - a => 0",
+			output: "(a - a) => 0",
+		},
+	}
+
+	for _, tt := range tests {
+		parser, err := parser.New(lexer.New(strings.NewReader(tt.input)))
+		assert.Nil(t, err)
+
+		rewriteRule, err := parser.ParseRewriteRule()
+		assert.Nil(t, err)
+		assert.Equal(t, tt.output, rewriteRule.String())
+	}
+}

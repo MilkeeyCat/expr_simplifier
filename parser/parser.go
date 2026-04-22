@@ -208,3 +208,28 @@ func (p *Parser) parseBinaryExpr(lhs ast.Expr) (ast.Expr, error) {
 		Rhs: rhs,
 	}, nil
 }
+
+func (p *Parser) ParseRewriteRule() (*ast.RewriteRule, error) {
+	pat, err := p.ParseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.expect(lexer.TokenTypeEqual); err != nil {
+		return nil, err
+	}
+
+	if err := p.expect(lexer.TokenTypeGreaterThan); err != nil {
+		return nil, err
+	}
+
+	result, err := p.ParseExpr()
+	if err != nil {
+		return nil, err
+	}
+
+	return &ast.RewriteRule{
+		Pattern: pat,
+		Result:  result,
+	}, nil
+}

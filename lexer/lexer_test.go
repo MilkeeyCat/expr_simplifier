@@ -19,6 +19,8 @@ func TestLexer(t *testing.T) {
 		-
 		*
 		/
+		=
+		>
 
 		(
 		)
@@ -31,6 +33,8 @@ func TestLexer(t *testing.T) {
 		{lexer.TokenTypeMinus, nil},
 		{lexer.TokenTypeAsterisk, nil},
 		{lexer.TokenTypeSlash, nil},
+		{lexer.TokenTypeEqual, nil},
+		{lexer.TokenTypeGreaterThan, nil},
 		{lexer.TokenTypeLeftParen, nil},
 		{lexer.TokenTypeRightParen, nil},
 		{lexer.TokenTypeEOF, nil},

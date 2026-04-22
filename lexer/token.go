@@ -13,6 +13,8 @@ const (
 	TokenTypeMinus
 	TokenTypeAsterisk
 	TokenTypeSlash
+	TokenTypeEqual
+	TokenTypeGreaterThan
 
 	TokenTypeLeftParen
 	TokenTypeRightParen
