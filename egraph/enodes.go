@@ -1,6 +1,7 @@
 package egraph
 
 import (
+	"fmt"
 	"strconv"
 	"unsafe"
 
@@ -55,6 +56,15 @@ func (node *binaryEnode) Children() []eclassID {
 	return []eclassID{node.lhs, node.rhs}
 }
 
+func (node *binaryEnode) CanonicalizeChildren(children []eclassID) {
+	if len(children) != 2 {
+		panic(fmt.Sprintf("expected 2 children, got %d", len(children)))
+	}
+
+	node.lhs = children[0]
+	node.rhs = children[1]
+}
+
 type unaryEnode struct {
 	op    ast.UnaryOp
 	class eclassID
@@ -78,6 +88,14 @@ func (node *unaryEnode) Key() enodeKey {
 
 func (node *unaryEnode) Children() []eclassID {
 	return []eclassID{node.class}
+}
+
+func (node *unaryEnode) CanonicalizeChildren(children []eclassID) {
+	if len(children) != 1 {
+		panic(fmt.Sprintf("expected 1 child, got %d", len(children)))
+	}
+
+	node.class = children[0]
 }
 
 type intEnode struct {
@@ -104,6 +122,12 @@ func (node *intEnode) Children() []eclassID {
 	return nil
 }
 
+func (node *intEnode) CanonicalizeChildren(children []eclassID) {
+	if len(children) != 0 {
+		panic(fmt.Sprintf("expected 0 children, got %d", len(children)))
+	}
+}
+
 type variableEnode struct {
 	name stringIdx
 }
@@ -126,4 +150,10 @@ func (node *variableEnode) String(graph *Egraph) string {
 
 func (node *variableEnode) Children() []eclassID {
 	return nil
+}
+
+func (node *variableEnode) CanonicalizeChildren(children []eclassID) {
+	if len(children) != 0 {
+		panic(fmt.Sprintf("expected 0 children, got %d", len(children)))
+	}
 }
