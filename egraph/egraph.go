@@ -74,12 +74,12 @@ func (graph *Egraph) canonicalEclassID(id EclassID) EclassID {
 	return graph.classesDSU.Find(id)
 }
 
-func (graph *Egraph) Merge(a, b EclassID) {
+func (graph *Egraph) Merge(a, b EclassID) bool {
 	a = graph.canonicalEclassID(a)
 	b = graph.canonicalEclassID(b)
 
 	if a == b {
-		return
+		return false
 	}
 
 	graph.classesDSU.Union(a, b)
@@ -104,6 +104,8 @@ func (graph *Egraph) Merge(a, b EclassID) {
 	rootClass.parents = concatEnodes(rootClass.parents, otherClass.parents)
 	graph.worklist = concatEnodes(graph.worklist, otherClass.parents)
 	delete(graph.classes, other)
+
+	return true
 }
 
 func (graph *Egraph) Rebuild() {
@@ -188,6 +190,30 @@ func (graph *Egraph) DFS(visitor Visitor) {
 	}
 }
 
+func (graph *Egraph) Add(node Enode) EclassID {
+	key := node.Key()
+
+	if classID, ok := graph.nodeToClassID[key]; ok {
+		return graph.canonicalEclassID(classID)
+	}
+
+	classID := graph.classesDSU.Add()
+	graph.classes[classID] = &Eclass{nodes: []Enode{node}}
+	graph.nodeToClassID[key] = classID
+
+	for _, child := range node.Children() {
+		childClass := graph.Eclass(child)
+
+		// is this good enough or does the e-node key have to be used for
+		// the comparison?
+		if !slices.Contains(childClass.parents, node) {
+			childClass.parents = append(childClass.parents, node)
+		}
+	}
+
+	return classID
+}
+
 func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
 	var node Enode
 
@@ -215,25 +241,5 @@ func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
 		panic(fmt.Sprintf("unknown expr type %T", expr))
 	}
 
-	key := node.Key()
-
-	if classID, ok := graph.nodeToClassID[key]; ok {
-		return graph.canonicalEclassID(classID)
-	}
-
-	classID := graph.classesDSU.Add()
-	graph.classes[classID] = &Eclass{nodes: []Enode{node}}
-	graph.nodeToClassID[key] = classID
-
-	for _, child := range node.Children() {
-		childClass := graph.Eclass(child)
-
-		// is this good enough or does the e-node key have to be used for
-		// the comparison?
-		if !slices.Contains(childClass.parents, node) {
-			childClass.parents = append(childClass.parents, node)
-		}
-	}
-
-	return classID
+	return graph.Add(node)
 }
