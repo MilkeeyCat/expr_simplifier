@@ -124,6 +124,27 @@ func (graph *Egraph) Rebuild() {
 			panic("e-class ID not found")
 		}
 
+		// deduplicate e-class's nodes. After canonicalizing the e-node's
+		// children, it may become identical to node(-s?) already present in the
+		// e-class.
+		//
+		{
+			class := graph.Eclass(classID)
+			nodes := make([]Enode, 0, len(class.nodes))
+			keys := make(map[enodeKey]struct{}, len(class.nodes))
+
+			for _, node := range class.nodes {
+				key := node.Key()
+
+				if _, ok := keys[key]; !ok {
+					nodes = append(nodes, node)
+					keys[key] = struct{}{}
+				}
+			}
+
+			class.nodes = nodes
+		}
+
 		delete(graph.nodeToClassID, key)
 
 		key = node.Key()
