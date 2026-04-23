@@ -24,24 +24,24 @@ type enodeKey struct {
 	data [wordSize * 2]byte
 }
 
-func enodeIDToBytes(id eclassID) [wordSize]byte {
-	return *(*[unsafe.Sizeof(eclassID(0))]byte)(unsafe.Pointer(&id))
+func enodeIDToBytes(id EclassID) [wordSize]byte {
+	return *(*[unsafe.Sizeof(EclassID(0))]byte)(unsafe.Pointer(&id))
 }
 
-type binaryEnode struct {
-	op  ast.BinaryOp
-	lhs eclassID
-	rhs eclassID
+type BinaryEnode struct {
+	Op  ast.BinaryOp
+	Lhs EclassID
+	Rhs EclassID
 }
 
-func (node *binaryEnode) String(graph *Egraph) string {
-	return node.op.String()
+func (node *BinaryEnode) String(graph *Egraph) string {
+	return node.Op.String()
 }
 
-func (node *binaryEnode) Key() enodeKey {
+func (node *BinaryEnode) Key() enodeKey {
 	var data [wordSize * 2]byte
-	lhs := enodeIDToBytes(node.lhs)
-	rhs := enodeIDToBytes(node.rhs)
+	lhs := enodeIDToBytes(node.Lhs)
+	rhs := enodeIDToBytes(node.Rhs)
 
 	copy(data[:], lhs[:])
 	copy(data[wordSize:], rhs[:])
@@ -52,31 +52,31 @@ func (node *binaryEnode) Key() enodeKey {
 	}
 }
 
-func (node *binaryEnode) Children() []eclassID {
-	return []eclassID{node.lhs, node.rhs}
+func (node *BinaryEnode) Children() []EclassID {
+	return []EclassID{node.Lhs, node.Rhs}
 }
 
-func (node *binaryEnode) CanonicalizeChildren(children []eclassID) {
+func (node *BinaryEnode) canonicalizeChildren(children []EclassID) {
 	if len(children) != 2 {
 		panic(fmt.Sprintf("expected 2 children, got %d", len(children)))
 	}
 
-	node.lhs = children[0]
-	node.rhs = children[1]
+	node.Lhs = children[0]
+	node.Rhs = children[1]
 }
 
-type unaryEnode struct {
-	op    ast.UnaryOp
-	class eclassID
+type UnaryEnode struct {
+	Op      ast.UnaryOp
+	ClassID EclassID
 }
 
-func (node *unaryEnode) String(graph *Egraph) string {
-	return node.op.String()
+func (node *UnaryEnode) String(graph *Egraph) string {
+	return node.Op.String()
 }
 
-func (node *unaryEnode) Key() enodeKey {
+func (node *UnaryEnode) Key() enodeKey {
 	var data [wordSize * 2]byte
-	expr := enodeIDToBytes(node.class)
+	expr := enodeIDToBytes(node.ClassID)
 
 	copy(data[:], expr[:])
 
@@ -86,29 +86,29 @@ func (node *unaryEnode) Key() enodeKey {
 	}
 }
 
-func (node *unaryEnode) Children() []eclassID {
-	return []eclassID{node.class}
+func (node *UnaryEnode) Children() []EclassID {
+	return []EclassID{node.ClassID}
 }
 
-func (node *unaryEnode) CanonicalizeChildren(children []eclassID) {
+func (node *UnaryEnode) canonicalizeChildren(children []EclassID) {
 	if len(children) != 1 {
 		panic(fmt.Sprintf("expected 1 child, got %d", len(children)))
 	}
 
-	node.class = children[0]
+	node.ClassID = children[0]
 }
 
-type intEnode struct {
-	value int64
+type IntEnode struct {
+	Value int64
 }
 
-func (node *intEnode) String(graph *Egraph) string {
-	return strconv.FormatInt(node.value, 10)
+func (node *IntEnode) String(graph *Egraph) string {
+	return strconv.FormatInt(node.Value, 10)
 }
 
-func (node *intEnode) Key() enodeKey {
+func (node *IntEnode) Key() enodeKey {
 	var data [wordSize * 2]byte
-	bytes := *(*[8]byte)(unsafe.Pointer(&node.value))
+	bytes := *(*[8]byte)(unsafe.Pointer(&node.Value))
 
 	copy(data[:], bytes[:])
 
@@ -118,23 +118,23 @@ func (node *intEnode) Key() enodeKey {
 	}
 }
 
-func (node *intEnode) Children() []eclassID {
+func (node *IntEnode) Children() []EclassID {
 	return nil
 }
 
-func (node *intEnode) CanonicalizeChildren(children []eclassID) {
+func (node *IntEnode) canonicalizeChildren(children []EclassID) {
 	if len(children) != 0 {
 		panic(fmt.Sprintf("expected 0 children, got %d", len(children)))
 	}
 }
 
-type variableEnode struct {
-	name stringIdx
+type VariableEnode struct {
+	Name stringIdx
 }
 
-func (node *variableEnode) Key() enodeKey {
+func (node *VariableEnode) Key() enodeKey {
 	var data [wordSize * 2]byte
-	bytes := (*[4]byte)(unsafe.Pointer(&node.name))
+	bytes := (*[4]byte)(unsafe.Pointer(&node.Name))
 
 	copy(data[:], bytes[:])
 
@@ -144,15 +144,15 @@ func (node *variableEnode) Key() enodeKey {
 	}
 }
 
-func (node *variableEnode) String(graph *Egraph) string {
-	return graph.interner.get(node.name)
+func (node *VariableEnode) String(graph *Egraph) string {
+	return graph.interner.get(node.Name)
 }
 
-func (node *variableEnode) Children() []eclassID {
+func (node *VariableEnode) Children() []EclassID {
 	return nil
 }
 
-func (node *variableEnode) CanonicalizeChildren(children []eclassID) {
+func (node *VariableEnode) canonicalizeChildren(children []EclassID) {
 	if len(children) != 0 {
 		panic(fmt.Sprintf("expected 0 children, got %d", len(children)))
 	}

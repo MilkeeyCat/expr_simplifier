@@ -8,16 +8,20 @@ import (
 	"github.com/MilkeeyCat/expr_simplifier/dsu"
 )
 
-type eclassID = dsu.Key
+type EclassID = dsu.Key
 
-type eclass struct {
-	nodes   []enode
-	parents []enode
+type Eclass struct {
+	nodes   []Enode
+	parents []Enode
 }
 
-func concatEnodes(a, b []enode) []enode {
+func (e *Eclass) Nodes() []Enode {
+	return e.nodes
+}
+
+func concatEnodes(a, b []Enode) []Enode {
 	for _, nodeB := range b {
-		if !slices.ContainsFunc(a, func(nodeA enode) bool {
+		if !slices.ContainsFunc(a, func(nodeA Enode) bool {
 			return nodeA.Key() == nodeB.Key()
 		}) {
 			a = append(a, nodeB)
@@ -27,30 +31,30 @@ func concatEnodes(a, b []enode) []enode {
 	return a
 }
 
-type enode interface {
+type Enode interface {
 	String(graph *Egraph) string
 	Key() enodeKey
-	Children() []eclassID
-	CanonicalizeChildren(children []eclassID)
+	Children() []EclassID
+	canonicalizeChildren(children []EclassID)
 }
 
 // Key invariant of this e-graph implementation is that after value saturation
 // all e-class IDs used in e-nodes are canonical.
 type Egraph struct {
-	root          eclassID
+	root          EclassID
 	classesDSU    *dsu.DisjointSet
-	classes       map[eclassID]*eclass
+	classes       map[EclassID]*Eclass
 	interner      *stringInterner
-	nodeToClassID map[enodeKey]eclassID
-	worklist      []enode
+	nodeToClassID map[enodeKey]EclassID
+	worklist      []Enode
 }
 
 func New(expr ast.Expr) *Egraph {
 	graph := &Egraph{
 		classesDSU:    new(dsu.DisjointSet),
-		classes:       make(map[eclassID]*eclass),
+		classes:       make(map[EclassID]*Eclass),
 		interner:      newStringInterner(),
-		nodeToClassID: make(map[enodeKey]eclassID),
+		nodeToClassID: make(map[enodeKey]EclassID),
 	}
 
 	graph.root = translateExpr(graph, expr)
@@ -58,7 +62,7 @@ func New(expr ast.Expr) *Egraph {
 	return graph
 }
 
-func (graph *Egraph) eclass(id eclassID) *eclass {
+func (graph *Egraph) Eclass(id EclassID) *Eclass {
 	if value, ok := graph.classes[graph.classesDSU.Find(id)]; ok {
 		return value
 	} else {
@@ -66,11 +70,11 @@ func (graph *Egraph) eclass(id eclassID) *eclass {
 	}
 }
 
-func (graph *Egraph) canonicalEclassID(id eclassID) eclassID {
+func (graph *Egraph) canonicalEclassID(id EclassID) EclassID {
 	return graph.classesDSU.Find(id)
 }
 
-func (graph *Egraph) merge(a, b eclassID) {
+func (graph *Egraph) Merge(a, b EclassID) {
 	a = graph.canonicalEclassID(a)
 	b = graph.canonicalEclassID(b)
 
@@ -102,7 +106,7 @@ func (graph *Egraph) merge(a, b eclassID) {
 	delete(graph.classes, other)
 }
 
-func (graph *Egraph) rebuild() {
+func (graph *Egraph) Rebuild() {
 	for len(graph.worklist) > 0 {
 		node := graph.worklist[len(graph.worklist)-1]
 		graph.worklist = graph.worklist[:len(graph.worklist)-1]
@@ -113,7 +117,7 @@ func (graph *Egraph) rebuild() {
 			children[i] = graph.canonicalEclassID(child)
 		}
 
-		node.CanonicalizeChildren(children)
+		node.canonicalizeChildren(children)
 
 		classID, ok := graph.nodeToClassID[key]
 		if !ok {
@@ -125,7 +129,7 @@ func (graph *Egraph) rebuild() {
 		key = node.Key()
 
 		if existing, ok := graph.nodeToClassID[key]; ok {
-			graph.merge(existing, classID)
+			graph.Merge(existing, classID)
 		} else {
 			graph.nodeToClassID[key] = classID
 		}
@@ -133,14 +137,14 @@ func (graph *Egraph) rebuild() {
 }
 
 type Visitor interface {
-	VisitEnode(graph *Egraph, node enode)
-	VisitEclass(graph *Egraph, classID eclassID)
+	VisitEnode(graph *Egraph, node Enode)
+	VisitEclass(graph *Egraph, classID EclassID)
 }
 
 func (graph *Egraph) DFS(visitor Visitor) {
 	root := graph.canonicalEclassID(graph.root)
-	visited := map[eclassID]struct{}{root: {}}
-	var stack []eclassID = []eclassID{root}
+	visited := map[EclassID]struct{}{root: {}}
+	var stack []EclassID = []EclassID{root}
 
 	for len(stack) > 0 {
 		class := stack[len(stack)-1]
@@ -148,7 +152,7 @@ func (graph *Egraph) DFS(visitor Visitor) {
 
 		visitor.VisitEclass(graph, class)
 
-		for _, node := range graph.eclass(class).nodes {
+		for _, node := range graph.Eclass(class).nodes {
 			visitor.VisitEnode(graph, node)
 
 			for _, child := range node.Children() {
@@ -163,28 +167,28 @@ func (graph *Egraph) DFS(visitor Visitor) {
 	}
 }
 
-func translateExpr(graph *Egraph, expr ast.Expr) eclassID {
-	var node enode
+func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
+	var node Enode
 
 	switch expr := expr.(type) {
 	case *ast.BinaryExpr:
-		node = &binaryEnode{
-			op:  expr.Op,
-			lhs: translateExpr(graph, expr.Lhs),
-			rhs: translateExpr(graph, expr.Rhs),
+		node = &BinaryEnode{
+			Op:  expr.Op,
+			Lhs: translateExpr(graph, expr.Lhs),
+			Rhs: translateExpr(graph, expr.Rhs),
 		}
 	case *ast.UnaryExpr:
-		node = &unaryEnode{
-			op:    expr.Op,
-			class: translateExpr(graph, expr.Expr),
+		node = &UnaryEnode{
+			Op:      expr.Op,
+			ClassID: translateExpr(graph, expr.Expr),
 		}
 	case *ast.IntExpr:
-		node = &intEnode{
-			value: expr.Value,
+		node = &IntEnode{
+			Value: expr.Value,
 		}
 	case *ast.VariableExpr:
-		node = &variableEnode{
-			name: graph.interner.intern(expr.Name),
+		node = &VariableEnode{
+			Name: graph.interner.intern(expr.Name),
 		}
 	default:
 		panic(fmt.Sprintf("unknown expr type %T", expr))
@@ -197,11 +201,11 @@ func translateExpr(graph *Egraph, expr ast.Expr) eclassID {
 	}
 
 	classID := graph.classesDSU.Add()
-	graph.classes[classID] = &eclass{nodes: []enode{node}}
+	graph.classes[classID] = &Eclass{nodes: []Enode{node}}
 	graph.nodeToClassID[key] = classID
 
 	for _, child := range node.Children() {
-		childClass := graph.eclass(child)
+		childClass := graph.Eclass(child)
 
 		// is this good enough or does the e-node key have to be used for
 		// the comparison?

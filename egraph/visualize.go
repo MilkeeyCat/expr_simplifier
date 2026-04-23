@@ -22,8 +22,8 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 	graph = graph.SetCompound(true)
 
 	collector := new(collector)
-	classIDToName := make(map[eclassID]string)
-	nodeToName := make(map[enode]string)
+	classIDToName := make(map[EclassID]string)
+	nodeToName := make(map[Enode]string)
 
 	egraph.DFS(collector)
 
@@ -37,7 +37,7 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 		classIDToName[classID] = clusterName
 		cluster = cluster.SetStyle(graphviz.FilledGraphStyle)
 
-		for nodeIdx, node := range egraph.eclass(classID).nodes {
+		for nodeIdx, node := range egraph.Eclass(classID).nodes {
 			nodeName := "node_" + strconv.Itoa(classIdx) + "_" + strconv.Itoa(nodeIdx)
 			graphNode, err := cluster.CreateNodeByName(nodeName)
 			if err != nil {
@@ -90,19 +90,19 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 }
 
 type edge struct {
-	node    enode
-	classID eclassID
+	node    Enode
+	classID EclassID
 }
 
 type collector struct {
-	classIDs []eclassID
+	classIDs []EclassID
 	edges    []edge
 }
 
-func (c *collector) VisitEclass(graph *Egraph, classID eclassID) {
+func (c *collector) VisitEclass(graph *Egraph, classID EclassID) {
 	c.classIDs = append(c.classIDs, classID)
 
-	for _, node := range graph.eclass(classID).nodes {
+	for _, node := range graph.Eclass(classID).nodes {
 		for _, classID := range node.Children() {
 			c.edges = append(c.edges, edge{
 				node:    node,
@@ -112,4 +112,4 @@ func (c *collector) VisitEclass(graph *Egraph, classID eclassID) {
 	}
 }
 
-func (c *collector) VisitEnode(graph *Egraph, node enode) {}
+func (c *collector) VisitEnode(graph *Egraph, node Enode) {}
