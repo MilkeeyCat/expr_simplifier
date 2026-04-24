@@ -2,6 +2,7 @@ package egraph
 
 import (
 	"fmt"
+	"math"
 	"slices"
 
 	"github.com/MilkeeyCat/expr_simplifier/ast"
@@ -214,6 +215,69 @@ func (graph *Egraph) Add(node Enode) EclassID {
 	return classID
 }
 
+type Cost = uint
+type CostFunc func(node Enode, costs map[EclassID]Cost) Cost
+
+const MaxCost Cost = math.MaxUint
+
+func (graph *Egraph) Extract(costFunc CostFunc) ast.Expr {
+	costs := make(map[EclassID]Cost)
+	best := make(map[EclassID]Enode)
+	var worklist []EclassID
+
+	for id, class := range graph.classes {
+		isLeaf := true
+
+		for _, node := range class.Nodes() {
+			if len(node.Children()) > 0 {
+				isLeaf = false
+			}
+		}
+
+		if isLeaf {
+			worklist = append(worklist, id)
+		}
+
+		costs[id] = MaxCost
+	}
+
+	for len(worklist) > 0 {
+		classID := worklist[len(worklist)-1]
+		class := graph.classes[classID]
+		worklist = worklist[:len(worklist)-1]
+		bestCost := MaxCost
+		var bestNode Enode
+
+		for _, node := range class.Nodes() {
+			cost := costFunc(node, costs)
+
+			if cost < bestCost {
+				bestNode = node
+				bestCost = cost
+			}
+		}
+
+		if bestCost < costs[classID] {
+			costs[classID] = bestCost
+			best[classID] = bestNode
+
+			var classIDs []EclassID
+
+			for _, node := range class.parents {
+				classID := graph.canonicalEclassID(graph.nodeToClassID[node.Key()])
+
+				if !slices.Contains(classIDs, classID) {
+					classIDs = append(classIDs, classID)
+				}
+			}
+
+			worklist = append(worklist, classIDs...)
+		}
+	}
+
+	return buildExpr(graph, best, graph.canonicalEclassID(graph.root))
+}
+
 func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
 	var node Enode
 
@@ -242,4 +306,30 @@ func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
 	}
 
 	return graph.Add(node)
+}
+
+func buildExpr(graph *Egraph, nodes map[EclassID]Enode, classID EclassID) ast.Expr {
+	switch node := nodes[classID].(type) {
+	case *BinaryEnode:
+		return &ast.BinaryExpr{
+			Op:  node.Op,
+			Lhs: buildExpr(graph, nodes, node.Lhs),
+			Rhs: buildExpr(graph, nodes, node.Rhs),
+		}
+	case *UnaryEnode:
+		return &ast.UnaryExpr{
+			Op:   node.Op,
+			Expr: buildExpr(graph, nodes, node.ClassID),
+		}
+	case *IntEnode:
+		return &ast.IntExpr{
+			Value: node.Value,
+		}
+	case *VariableEnode:
+		return &ast.VariableExpr{
+			Name: graph.interner.get(node.Name),
+		}
+	default:
+		panic(fmt.Sprintf("unknown e-node type %T", node))
+	}
 }
