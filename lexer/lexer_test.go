@@ -48,3 +48,32 @@ func TestLexer(t *testing.T) {
 		assert.Equal(t, expected, actual)
 	}
 }
+
+func TestUnknownChars(t *testing.T) {
+	results := []struct {
+		token lexer.Token
+		err   error
+	}{
+		{
+			token: lexer.Token{lexer.TokenTypeIdent, "a"},
+		},
+		{
+			token: lexer.Token{lexer.TokenTypeInvalid, nil},
+			err:   lexer.ErrUnknownCharacter{Char: '&'},
+		},
+		{
+			token: lexer.Token{lexer.TokenTypeInt, int64(5)},
+		},
+		{
+			token: lexer.Token{lexer.TokenTypeEOF, nil},
+		},
+	}
+	lexer := lexer.New(strings.NewReader("a & 5"))
+
+	for _, result := range results {
+		token, err := lexer.Next()
+
+		assert.Equal(t, result.token, token)
+		assert.Equal(t, result.err, err)
+	}
+}

@@ -3,10 +3,19 @@ package lexer
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"unicode"
 )
+
+type ErrUnknownCharacter struct {
+	Char rune
+}
+
+func (e ErrUnknownCharacter) Error() string {
+	return fmt.Sprintf("unknown character: %c", e.Char)
+}
 
 type Lexer struct {
 	input *bufio.Reader
@@ -52,11 +61,13 @@ func (l *Lexer) Next() (Token, error) {
 	case 0:
 		token.Type = TokenTypeEOF
 	default:
-		if err := l.unreadRune(ch); err != nil {
-			return token, err
-		}
 
-		if unicode.IsDigit(ch) {
+		switch {
+		case unicode.IsDigit(ch):
+			if err := l.unreadRune(ch); err != nil {
+				return token, err
+			}
+
 			value, err := l.readInt()
 			if err != nil {
 				return token, err
@@ -64,7 +75,11 @@ func (l *Lexer) Next() (Token, error) {
 
 			token.Type = TokenTypeInt
 			token.Value = value
-		} else {
+		case isAlphanumeric(ch):
+			if err := l.unreadRune(ch); err != nil {
+				return token, err
+			}
+
 			value, err := l.readIdent()
 			if err != nil {
 				return token, err
@@ -72,6 +87,10 @@ func (l *Lexer) Next() (Token, error) {
 
 			token.Type = TokenTypeIdent
 			token.Value = value
+		default:
+			return token, ErrUnknownCharacter{
+				Char: ch,
+			}
 		}
 	}
 
@@ -170,7 +189,7 @@ func (l *Lexer) readIdent() (string, error) {
 			return "", err
 		}
 
-		if !(unicode.IsLetter(ch) || unicode.IsDigit(ch)) {
+		if !isAlphanumeric(ch) {
 			if err := l.unreadRune(ch); err != nil {
 				return "", err
 			}
@@ -182,4 +201,8 @@ func (l *Lexer) readIdent() (string, error) {
 	}
 
 	return string(buf), nil
+}
+
+func isAlphanumeric(ch rune) bool {
+	return unicode.IsLetter(ch) || unicode.IsDigit(ch)
 }

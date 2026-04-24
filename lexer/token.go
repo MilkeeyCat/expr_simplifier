@@ -3,7 +3,8 @@ package lexer
 type TokenType uint8
 
 const (
-	TokenTypeEOF TokenType = iota
+	TokenTypeInvalid TokenType = iota
+	TokenTypeEOF
 
 	TokenTypeIdent
 	TokenTypeInt
