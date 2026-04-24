@@ -8,10 +8,8 @@ import (
 	"github.com/MilkeeyCat/expr_simplifier/ast"
 )
 
-type enodeKeyKind byte
-
 const (
-	enodeKeyKindBinary enodeKeyKind = iota
+	enodeKeyKindBinary byte = iota
 	enodeKeyKindUnary
 	enodeKeyKindInt
 	enodeKeyKindVariable
@@ -20,7 +18,7 @@ const (
 const wordSize = unsafe.Sizeof(uintptr(0))
 
 type enodeKey struct {
-	kind enodeKeyKind
+	kind byte
 	data [wordSize * 2]byte
 }
 
@@ -47,7 +45,7 @@ func (node *BinaryEnode) Key() enodeKey {
 	copy(data[wordSize:], rhs[:])
 
 	return enodeKey{
-		kind: enodeKeyKindBinary,
+		kind: (enodeKeyKindBinary << 4) | byte(node.Op)&0x0f,
 		data: data,
 	}
 }
@@ -81,7 +79,7 @@ func (node *UnaryEnode) Key() enodeKey {
 	copy(data[:], expr[:])
 
 	return enodeKey{
-		kind: enodeKeyKindUnary,
+		kind: (enodeKeyKindUnary << 4) | byte(node.Op)&0x0f,
 		data: data,
 	}
 }
