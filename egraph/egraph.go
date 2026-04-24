@@ -168,7 +168,7 @@ type Visitor interface {
 func (graph *Egraph) DFS(visitor Visitor) {
 	root := graph.canonicalEclassID(graph.root)
 	visited := map[EclassID]struct{}{root: {}}
-	var stack []EclassID = []EclassID{root}
+	stack := []EclassID{root}
 
 	for len(stack) > 0 {
 		class := stack[len(stack)-1]

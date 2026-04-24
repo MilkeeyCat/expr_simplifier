@@ -45,8 +45,8 @@ func Visualize(ctx context.Context, egraph *Egraph, dest io.Writer) error {
 			}
 
 			nodeToName[node] = nodeName
-			graphNode = graphNode.SetLabel(node.String(egraph))
-			graphNode = graphNode.SetShape(graphviz.RectShape)
+			graphNode.SetLabel(node.String(egraph))
+			graphNode.SetShape(graphviz.RectShape)
 		}
 	}
 
