@@ -41,7 +41,7 @@ func (r *Rewriter) Run() {
 			matches := matchPattern(r.graph, rule.Pattern)
 
 			if len(matches) > 0 {
-				changed = changed || applyMatches(r.graph, matches, rule.Result)
+				changed = applyMatches(r.graph, matches, rule.Result) || changed
 			}
 		}
 
