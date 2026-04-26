@@ -36,10 +36,11 @@ func New(l *lexer.Lexer) (*Parser, error) {
 	}
 
 	parser.infixParseFns = map[lexer.TokenType]func(lhs ast.Expr) (ast.Expr, error){
-		lexer.TokenTypePlus:     parser.parseBinaryExpr,
-		lexer.TokenTypeMinus:    parser.parseBinaryExpr,
-		lexer.TokenTypeAsterisk: parser.parseBinaryExpr,
-		lexer.TokenTypeSlash:    parser.parseBinaryExpr,
+		lexer.TokenTypePlus:      parser.parseBinaryExpr,
+		lexer.TokenTypeMinus:     parser.parseBinaryExpr,
+		lexer.TokenTypeAsterisk:  parser.parseBinaryExpr,
+		lexer.TokenTypeSlash:     parser.parseBinaryExpr,
+		lexer.TokenTypeLeftParen: parser.parseCallExpr,
 	}
 
 	if err := parser.nextToken(); err != nil {
@@ -157,7 +158,6 @@ func (p *Parser) parseUnaryExpr() (ast.Expr, error) {
 		Op:   op,
 		Expr: expr,
 	}, nil
-
 }
 
 func (p *Parser) parseGroup() (ast.Expr, error) {
@@ -206,6 +206,43 @@ func (p *Parser) parseBinaryExpr(lhs ast.Expr) (ast.Expr, error) {
 		Op:  op,
 		Lhs: lhs,
 		Rhs: rhs,
+	}, nil
+}
+
+func (p *Parser) parseCallExpr(lhs ast.Expr) (ast.Expr, error) {
+	expr, ok := lhs.(*ast.VariableExpr)
+	if !ok {
+		return nil, errors.New("function name must be a string")
+	}
+
+	if err := p.expect(lexer.TokenTypeLeftParen); err != nil {
+		return nil, err
+	}
+
+	var args []ast.Expr
+
+	for p.curToken.Type != lexer.TokenTypeRightParen {
+		expr, err := p.ParseExpr()
+		if err != nil {
+			return nil, err
+		}
+
+		args = append(args, expr)
+
+		if p.curToken.Type != lexer.TokenTypeRightParen {
+			if err := p.expect(lexer.TokenTypeComma); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	if err := p.expect(lexer.TokenTypeRightParen); err != nil {
+		return nil, err
+	}
+
+	return &ast.CallExpr{
+		Name: expr.Name,
+		Args: args,
 	}, nil
 }
 

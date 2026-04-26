@@ -133,6 +133,18 @@ func cost(node egraph.Enode, costs map[egraph.EclassID]egraph.Cost) egraph.Cost 
 		}
 
 		return 1 + costs[node.ClassID]
+	case *egraph.CallEnode:
+		var cost egraph.Cost
+
+		for _, classID := range node.Args {
+			if costs[classID] == egraph.MaxCost {
+				return egraph.MaxCost
+			}
+
+			cost += costs[classID]
+		}
+
+		return 1 + cost
 	case *egraph.IntEnode:
 		return 1
 	case *egraph.VariableEnode:

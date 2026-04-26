@@ -39,6 +39,10 @@ func TestSimpleExprs(t *testing.T) {
 			input:  "2 + -41",
 			output: "(2 + -41)",
 		},
+		{
+			input:  "pow(79, 2)",
+			output: "pow(79, 2)",
+		},
 	}
 
 	for _, tt := range tests {
@@ -72,6 +76,10 @@ func TestPrecedence(t *testing.T) {
 			input:  "1 * 2 + 3 / 4",
 			output: "((1 * 2) + (3 / 4))",
 		},
+		{
+			input:  "sqrt(16) + 9 / 26",
+			output: "(sqrt(16) + (9 / 26))",
+		},
 	}
 
 	for _, tt := range tests {
@@ -100,6 +108,10 @@ func TestRewriteRules(t *testing.T) {
 		{
 			input:  "a - a => 0",
 			output: "(a - a) => 0",
+		},
+		{
+			input:  "pow(sqrt(a), 2) => a",
+			output: "pow(sqrt(a), 2) => a",
 		},
 	}
 

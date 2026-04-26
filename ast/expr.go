@@ -3,6 +3,7 @@ package ast
 import (
 	"fmt"
 	"strconv"
+	"strings"
 )
 
 type Expr interface {
@@ -65,6 +66,25 @@ type UnaryExpr struct {
 
 func (expr *UnaryExpr) String() string {
 	return expr.Op.String() + expr.Expr.String()
+}
+
+type CallExpr struct {
+	Name string
+	Args []Expr
+}
+
+func (expr *CallExpr) String() string {
+	var buf strings.Builder
+
+	for i, arg := range expr.Args {
+		buf.WriteString(arg.String())
+
+		if i < len(expr.Args)-1 {
+			buf.WriteString(", ")
+		}
+	}
+
+	return expr.Name + "(" + buf.String() + ")"
 }
 
 type IntExpr struct {

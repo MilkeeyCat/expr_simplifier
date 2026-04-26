@@ -1,6 +1,7 @@
 package rewriter
 
 import (
+	"fmt"
 	"maps"
 
 	"github.com/MilkeeyCat/expr_simplifier/ast"
@@ -75,6 +76,37 @@ func (m *matcher) match(
 
 		return envs
 
+	case *ast.CallExpr:
+		var envs []env
+
+		for _, node := range class.Nodes() {
+			if node, ok := node.(*egraph.CallEnode); ok {
+				if node.Name != expr.Name || len(node.Args) != len(expr.Args) {
+					continue
+				}
+
+				candidates := []env{bindingsEnv}
+
+				for i, arg := range expr.Args {
+					var tmp []env
+
+					for _, env := range candidates {
+						tmp = append(tmp, m.match(graph, node.Args[i], arg, env)...)
+					}
+
+					candidates = tmp
+
+					if len(tmp) == 0 {
+						break
+					}
+				}
+
+				envs = append(envs, candidates...)
+			}
+		}
+
+		return envs
+
 	case *ast.IntExpr:
 		for _, node := range class.Nodes() {
 			if node, ok := node.(*egraph.IntEnode); ok {
@@ -97,6 +129,8 @@ func (m *matcher) match(
 		bindingsEnv[expr.Name] = classID
 
 		return []env{bindingsEnv}
+	default:
+		panic(fmt.Sprintf("unknown expr type %T", expr))
 	}
 
 	return nil

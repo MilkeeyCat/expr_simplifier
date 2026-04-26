@@ -46,6 +46,10 @@ func cmpEnodes(a, b Enode) bool {
 		if b, ok := b.(*UnaryEnode); ok {
 			return a.Op == b.Op && a.ClassID == b.ClassID
 		}
+	case *CallEnode:
+		if b, ok := b.(*CallEnode); ok {
+			return a.Name == b.Name && slices.Compare(a.Args, b.Args) == 0
+		}
 	case *IntEnode:
 		if b, ok := b.(*IntEnode); ok {
 			return a.Value == b.Value
@@ -316,6 +320,17 @@ func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
 			Op:      expr.Op,
 			ClassID: translateExpr(graph, expr.Expr),
 		}
+	case *ast.CallExpr:
+		args := make([]EclassID, len(expr.Args))
+
+		for i, expr := range expr.Args {
+			args[i] = translateExpr(graph, expr)
+		}
+
+		node = &CallEnode{
+			Name: expr.Name,
+			Args: args,
+		}
 	case *ast.IntExpr:
 		node = &IntEnode{
 			Value: expr.Value,
@@ -343,6 +358,17 @@ func buildExpr(graph *Egraph, nodes map[EclassID]Enode, classID EclassID) ast.Ex
 		return &ast.UnaryExpr{
 			Op:   node.Op,
 			Expr: buildExpr(graph, nodes, node.ClassID),
+		}
+	case *CallEnode:
+		args := make([]ast.Expr, len(node.Args))
+
+		for i, classID := range node.Args {
+			args[i] = buildExpr(graph, nodes, classID)
+		}
+
+		return &ast.CallExpr{
+			Name: node.Name,
+			Args: args,
 		}
 	case *IntEnode:
 		return &ast.IntExpr{

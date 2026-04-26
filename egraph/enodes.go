@@ -3,6 +3,7 @@ package egraph
 import (
 	"fmt"
 	"hash/maphash"
+	"slices"
 	"strconv"
 	"unsafe"
 
@@ -12,6 +13,7 @@ import (
 const (
 	enodeKeyKindBinary byte = iota
 	enodeKeyKindUnary
+	enodeKeyKindCall
 	enodeKeyKindInt
 	enodeKeyKindVariable
 )
@@ -80,6 +82,37 @@ func (node *UnaryEnode) canonicalizeChildren(children []EclassID) {
 	}
 
 	node.ClassID = children[0]
+}
+
+type CallEnode struct {
+	Name string
+	Args []EclassID
+}
+
+func (node *CallEnode) String() string {
+	return node.Name + "(" + strconv.Itoa(len(node.Args)) + ")"
+}
+
+func (node *CallEnode) Children() []EclassID {
+	return slices.Clone(node.Args)
+}
+
+func (node *CallEnode) FillHash(hash *maphash.Hash) {
+	hash.WriteByte((enodeKeyKindCall << 4))
+
+	for _, classID := range node.Args {
+		bytes := enodeIDToBytes(classID)
+
+		hash.Write(bytes[:])
+	}
+}
+
+func (node *CallEnode) canonicalizeChildren(children []EclassID) {
+	if len(children) != len(node.Args) {
+		panic(fmt.Sprintf("expected %d children, got %d", len(node.Args), len(children)))
+	}
+
+	node.Args = children
 }
 
 type IntEnode struct {
