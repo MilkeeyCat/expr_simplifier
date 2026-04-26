@@ -112,7 +112,7 @@ func parseRewriteRules(rules iter.Seq[string]) ([]*ast.RewriteRule, error) {
 	return rewriteRules, nil
 }
 
-// runs the saturation run until there're no rewrites that can be applied
+// runs the saturation until there're no rewrites that can be applied
 type nopStopper struct{}
 
 func (ns nopStopper) Stop(stats rewriter.Stats) bool {

@@ -13,9 +13,7 @@ type key struct {
 }
 
 func (k *key) FillHash(hash *maphash.Hash) {
-	if _, err := hash.WriteString(k.value); err != nil {
-		panic("failed to write bytes into hash")
-	}
+	hash.WriteString(k.value)
 }
 
 func cmp(lhs, rhs *key) bool {
