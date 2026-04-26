@@ -2,12 +2,16 @@ package egraph
 
 import (
 	"fmt"
+	"hash/maphash"
 	"math"
 	"slices"
 
 	"github.com/MilkeeyCat/expr_simplifier/ast"
 	"github.com/MilkeeyCat/expr_simplifier/dsu"
+	"github.com/MilkeeyCat/expr_simplifier/hashmap"
 )
+
+const hashMapSize = 10
 
 type EclassID = dsu.Key
 
@@ -23,7 +27,7 @@ func (e *Eclass) Nodes() []Enode {
 func concatEnodes(a, b []Enode) []Enode {
 	for _, nodeB := range b {
 		if !slices.ContainsFunc(a, func(nodeA Enode) bool {
-			return nodeA.Key() == nodeB.Key()
+			return cmpEnodes(nodeA, nodeB)
 		}) {
 			a = append(a, nodeB)
 		}
@@ -32,10 +36,36 @@ func concatEnodes(a, b []Enode) []Enode {
 	return a
 }
 
+func cmpEnodes(a, b Enode) bool {
+	switch a := a.(type) {
+	case *BinaryEnode:
+		if b, ok := b.(*BinaryEnode); ok {
+			return a.Op == b.Op && a.Lhs == b.Lhs && a.Rhs == b.Rhs
+		}
+	case *UnaryEnode:
+		if b, ok := b.(*UnaryEnode); ok {
+			return a.Op == b.Op && a.ClassID == b.ClassID
+		}
+	case *IntEnode:
+		if b, ok := b.(*IntEnode); ok {
+			return a.Value == b.Value
+		}
+	case *VariableEnode:
+		if b, ok := b.(*VariableEnode); ok {
+			return a.Name == b.Name
+		}
+	default:
+		panic(fmt.Sprintf("unknown e-node type %T", a))
+	}
+
+	return false
+}
+
 type Enode interface {
-	String(graph *Egraph) string
-	Key() enodeKey
+	fmt.Stringer
+
 	Children() []EclassID
+	FillHash(hash *maphash.Hash)
 	canonicalizeChildren(children []EclassID)
 }
 
@@ -45,8 +75,7 @@ type Egraph struct {
 	root          EclassID
 	classesDSU    *dsu.DisjointSet
 	classes       map[EclassID]*Eclass
-	interner      *stringInterner
-	nodeToClassID map[enodeKey]EclassID
+	nodeToClassID *hashmap.HashMap[Enode, EclassID]
 	worklist      []Enode
 }
 
@@ -54,8 +83,7 @@ func New(expr ast.Expr) *Egraph {
 	graph := &Egraph{
 		classesDSU:    new(dsu.DisjointSet),
 		classes:       make(map[EclassID]*Eclass),
-		interner:      newStringInterner(),
-		nodeToClassID: make(map[enodeKey]EclassID),
+		nodeToClassID: hashmap.New[Enode, EclassID](hashMapSize, cmpEnodes),
 	}
 
 	graph.root = translateExpr(graph, expr)
@@ -113,7 +141,10 @@ func (graph *Egraph) Rebuild() {
 	for len(graph.worklist) > 0 {
 		node := graph.worklist[len(graph.worklist)-1]
 		graph.worklist = graph.worklist[:len(graph.worklist)-1]
-		key := node.Key()
+		classID, ok := graph.nodeToClassID.Get(node)
+		if !ok {
+			panic("e-class ID not found")
+		}
 		children := node.Children()
 
 		for i, child := range children {
@@ -122,40 +153,30 @@ func (graph *Egraph) Rebuild() {
 
 		node.canonicalizeChildren(children)
 
-		classID, ok := graph.nodeToClassID[key]
-		if !ok {
-			panic("e-class ID not found")
-		}
-
 		// deduplicate e-class's nodes. After canonicalizing the e-node's
 		// children, it may become identical to node(-s?) already present in the
 		// e-class.
-		//
 		{
 			class := graph.Eclass(classID)
 			nodes := make([]Enode, 0, len(class.nodes))
-			keys := make(map[enodeKey]struct{}, len(class.nodes))
+			visited := hashmap.New[Enode, struct{}](hashMapSize, cmpEnodes)
 
 			for _, node := range class.nodes {
-				key := node.Key()
-
-				if _, ok := keys[key]; !ok {
+				if _, ok := visited.Get(node); !ok {
 					nodes = append(nodes, node)
-					keys[key] = struct{}{}
+					visited.Insert(node, struct{}{})
 				}
 			}
 
 			class.nodes = nodes
 		}
 
-		delete(graph.nodeToClassID, key)
+		graph.nodeToClassID.Remove(node)
 
-		key = node.Key()
-
-		if existing, ok := graph.nodeToClassID[key]; ok {
+		if existing, ok := graph.nodeToClassID.Get(node); ok {
 			graph.Merge(existing, classID)
 		} else {
-			graph.nodeToClassID[key] = classID
+			graph.nodeToClassID.Insert(node, classID)
 		}
 	}
 }
@@ -192,15 +213,13 @@ func (graph *Egraph) DFS(visitor Visitor) {
 }
 
 func (graph *Egraph) Add(node Enode) EclassID {
-	key := node.Key()
-
-	if classID, ok := graph.nodeToClassID[key]; ok {
+	if classID, ok := graph.nodeToClassID.Get(node); ok {
 		return graph.canonicalEclassID(classID)
 	}
 
 	classID := graph.classesDSU.Add()
 	graph.classes[classID] = &Eclass{nodes: []Enode{node}}
-	graph.nodeToClassID[key] = classID
+	graph.nodeToClassID.Insert(node, classID)
 
 	for _, child := range node.Children() {
 		childClass := graph.Eclass(child)
@@ -264,7 +283,11 @@ func (graph *Egraph) Extract(costFunc CostFunc) ast.Expr {
 			var classIDs []EclassID
 
 			for _, node := range class.parents {
-				classID := graph.canonicalEclassID(graph.nodeToClassID[node.Key()])
+				classID, ok := graph.nodeToClassID.Get(node)
+				if !ok {
+					panic("e-class not found")
+				}
+				classID = graph.canonicalEclassID(classID)
 
 				if !slices.Contains(classIDs, classID) {
 					classIDs = append(classIDs, classID)
@@ -299,7 +322,7 @@ func translateExpr(graph *Egraph, expr ast.Expr) EclassID {
 		}
 	case *ast.VariableExpr:
 		node = &VariableEnode{
-			Name: graph.interner.intern(expr.Name),
+			Name: expr.Name,
 		}
 	default:
 		panic(fmt.Sprintf("unknown expr type %T", expr))
@@ -327,7 +350,7 @@ func buildExpr(graph *Egraph, nodes map[EclassID]Enode, classID EclassID) ast.Ex
 		}
 	case *VariableEnode:
 		return &ast.VariableExpr{
-			Name: graph.interner.get(node.Name),
+			Name: node.Name,
 		}
 	default:
 		panic(fmt.Sprintf("unknown e-node type %T", node))

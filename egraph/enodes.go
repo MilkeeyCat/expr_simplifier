@@ -2,6 +2,7 @@ package egraph
 
 import (
 	"fmt"
+	"hash/maphash"
 	"strconv"
 	"unsafe"
 
@@ -17,11 +18,6 @@ const (
 
 const wordSize = unsafe.Sizeof(uintptr(0))
 
-type enodeKey struct {
-	kind byte
-	data [wordSize * 2]byte
-}
-
 func enodeIDToBytes(id EclassID) [wordSize]byte {
 	return *(*[unsafe.Sizeof(EclassID(0))]byte)(unsafe.Pointer(&id))
 }
@@ -32,26 +28,21 @@ type BinaryEnode struct {
 	Rhs EclassID
 }
 
-func (node *BinaryEnode) String(graph *Egraph) string {
+func (node *BinaryEnode) String() string {
 	return node.Op.String()
-}
-
-func (node *BinaryEnode) Key() enodeKey {
-	var data [wordSize * 2]byte
-	lhs := enodeIDToBytes(node.Lhs)
-	rhs := enodeIDToBytes(node.Rhs)
-
-	copy(data[:], lhs[:])
-	copy(data[wordSize:], rhs[:])
-
-	return enodeKey{
-		kind: (enodeKeyKindBinary << 4) | byte(node.Op)&0x0f,
-		data: data,
-	}
 }
 
 func (node *BinaryEnode) Children() []EclassID {
 	return []EclassID{node.Lhs, node.Rhs}
+}
+
+func (node *BinaryEnode) FillHash(hash *maphash.Hash) {
+	lhs := enodeIDToBytes(node.Lhs)
+	rhs := enodeIDToBytes(node.Rhs)
+
+	hash.WriteByte((enodeKeyKindBinary << 4) | byte(node.Op)&0x0f)
+	hash.Write(lhs[:])
+	hash.Write(rhs[:])
 }
 
 func (node *BinaryEnode) canonicalizeChildren(children []EclassID) {
@@ -68,24 +59,19 @@ type UnaryEnode struct {
 	ClassID EclassID
 }
 
-func (node *UnaryEnode) String(graph *Egraph) string {
+func (node *UnaryEnode) String() string {
 	return node.Op.String()
-}
-
-func (node *UnaryEnode) Key() enodeKey {
-	var data [wordSize * 2]byte
-	expr := enodeIDToBytes(node.ClassID)
-
-	copy(data[:], expr[:])
-
-	return enodeKey{
-		kind: (enodeKeyKindUnary << 4) | byte(node.Op)&0x0f,
-		data: data,
-	}
 }
 
 func (node *UnaryEnode) Children() []EclassID {
 	return []EclassID{node.ClassID}
+}
+
+func (node *UnaryEnode) FillHash(hash *maphash.Hash) {
+	bytes := enodeIDToBytes(node.ClassID)
+
+	hash.WriteByte((enodeKeyKindUnary << 4) | byte(node.Op)&0x0f)
+	hash.Write(bytes[:])
 }
 
 func (node *UnaryEnode) canonicalizeChildren(children []EclassID) {
@@ -100,24 +86,24 @@ type IntEnode struct {
 	Value int64
 }
 
-func (node *IntEnode) String(graph *Egraph) string {
+func (node *IntEnode) String() string {
 	return strconv.FormatInt(node.Value, 10)
-}
-
-func (node *IntEnode) Key() enodeKey {
-	var data [wordSize * 2]byte
-	bytes := *(*[8]byte)(unsafe.Pointer(&node.Value))
-
-	copy(data[:], bytes[:])
-
-	return enodeKey{
-		kind: enodeKeyKindInt,
-		data: data,
-	}
 }
 
 func (node *IntEnode) Children() []EclassID {
 	return nil
+}
+
+func (node *IntEnode) FillHash(hash *maphash.Hash) {
+	bytes := [4]byte{
+		byte(node.Value & 0xff),
+		byte((node.Value >> 8) & 0xff),
+		byte((node.Value >> 16) & 0xff),
+		byte((node.Value >> 24) & 0xff),
+	}
+
+	hash.WriteByte(enodeKeyKindInt << 4)
+	hash.Write(bytes[:])
 }
 
 func (node *IntEnode) canonicalizeChildren(children []EclassID) {
@@ -127,27 +113,20 @@ func (node *IntEnode) canonicalizeChildren(children []EclassID) {
 }
 
 type VariableEnode struct {
-	Name stringIdx
+	Name string
 }
 
-func (node *VariableEnode) Key() enodeKey {
-	var data [wordSize * 2]byte
-	bytes := (*[4]byte)(unsafe.Pointer(&node.Name))
-
-	copy(data[:], bytes[:])
-
-	return enodeKey{
-		kind: enodeKeyKindVariable,
-		data: data,
-	}
-}
-
-func (node *VariableEnode) String(graph *Egraph) string {
-	return graph.interner.get(node.Name)
+func (node *VariableEnode) String() string {
+	return node.Name
 }
 
 func (node *VariableEnode) Children() []EclassID {
 	return nil
+}
+
+func (node *VariableEnode) FillHash(hash *maphash.Hash) {
+	hash.WriteByte(enodeKeyKindVariable << 4)
+	hash.WriteString(node.Name)
 }
 
 func (node *VariableEnode) canonicalizeChildren(children []EclassID) {
