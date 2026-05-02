@@ -64,7 +64,7 @@ func applyMatches(graph *egraph.Egraph, matches []match, expr ast.Expr) bool {
 		for _, env := range match.envs {
 			classID := buildEclass(graph, env, expr)
 
-			changed = changed || graph.Merge(match.classID, classID)
+			changed = graph.Merge(match.classID, classID) || changed
 		}
 	}
 
